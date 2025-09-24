@@ -105,7 +105,7 @@ dependencies {
     }
 
     // Test dependencies (JUnit 5 + Mockito)
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
     // Mockito 3.x for Java 8 compatibility
     testImplementation("org.mockito:mockito-core:3.12.4")
