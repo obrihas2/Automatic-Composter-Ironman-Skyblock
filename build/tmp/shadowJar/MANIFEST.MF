@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+FMLCorePlugin: com.jelly.farmhelperv2.transformer.FMLCore
+FMLCorePluginContainsFMLMod: true
+ForceLoadAsMod: true
+TweakOrder: 0
+ModSide: CLIENT
+TweakClass: cc.polyfrost.oneconfig.loader.stage0.LaunchWrapperTweaker
+MixinConfigs: mixins.compostershelpers.json, mixins.baritone.json
+

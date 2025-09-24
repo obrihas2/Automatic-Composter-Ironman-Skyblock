@@ -1,0 +1,24 @@
+v1	named	intermediary
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinEntity	F	rotationYaw	field_70177_z
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinKeyBinding	I	keyCode	field_74512_d
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinKeyBinding	I	pressTime	field_151474_i
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinKeyBinding	Z	pressed	field_74513_e
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinMinecraft	Lnet/minecraft/client/gui/GuiScreen;	currentScreen	field_71462_r
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinMinecraft	Lnet/minecraft/client/settings/GameSettings;	gameSettings	field_71474_y
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinMinecraft	Z	inGameHasFocus	field_71415_G
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinMinecraft	Lnet/minecraft/util/MovingObjectPosition;	objectMouseOver	field_71476_x
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinMinecraft	Lnet/minecraft/entity/Entity;	renderViewEntity	field_175622_Z
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinMinecraft	Lnet/minecraft/client/multiplayer/PlayerControllerMP;	playerController	field_71442_b
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinMinecraft	Lnet/minecraft/client/multiplayer/WorldClient;	theWorld	field_71441_e
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinMinecraft	Lnet/minecraft/client/entity/EntityPlayerSP;	thePlayer	field_71439_g
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinPlayerControllerMP	F	curBlockDamageMP	field_78770_f
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinPlayerControllerMP	F	stepSoundTickCounter	field_78780_h
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinPlayerControllerMP	I	blockHitDelay	field_78781_i
+FIELD	com/jelly/farmhelperv2/mixin/client/MixinPlayerControllerMP	Lnet/minecraft/client/Minecraft;	mc	field_78776_a
+FIELD	com/jelly/farmhelperv2/mixin/gui/MixinGuiDisconnected	Ljava/util/List;	multilineMessage	field_146305_g
+FIELD	com/jelly/farmhelperv2/mixin/gui/MixinGuiMainMenu	Ljava/lang/String;	splashText	field_73975_c
+FIELD	com/jelly/farmhelperv2/mixin/render/MixinEntityRenderer	F	thirdPersonDistanceTemp	field_78491_C
+FIELD	com/jelly/farmhelperv2/mixin/render/MixinModelBiped	Lnet/minecraft/client/model/ModelRenderer;	bipedHead	field_78116_c
+METHOD	com/jelly/farmhelperv2/mixin/client/MixinChunk	(Lnet/minecraft/util/BlockPos;)Lnet/minecraft/block/state/IBlockState;	getBlockState	func_177435_g
+METHOD	com/jelly/farmhelperv2/mixin/client/MixinEntity	(FFF)V	moveFlying	func_70060_a
+METHOD	com/jelly/farmhelperv2/mixin/client/MixinScoreboard	(Ljava/lang/String;)Lnet/minecraft/scoreboard/ScorePlayerTeam;	getTeam	func_96508_e
