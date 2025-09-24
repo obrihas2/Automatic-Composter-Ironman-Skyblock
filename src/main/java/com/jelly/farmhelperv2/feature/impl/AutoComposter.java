@@ -86,8 +86,6 @@ public class AutoComposter implements IFeature {
     private final BlockPos initialComposterPos = new BlockPos(-11, 72, -27);
     private Entity composter = null;
     private boolean composterChecked = false;
-    private boolean hasExecutedListFarms = false; // Flag to track if we've executed /ez-listfarms
-    private boolean hasExecutedStartScript = false; // Flag to track if we've executed /ez-startscript
     private int endSequenceStep = 0; // Track which step of the end sequence we're on
 
 
@@ -137,8 +135,6 @@ public class AutoComposter implements IFeature {
         biofuelBuyer.stop();
         enabled = true;
         composterChecked = false;
-        hasExecutedListFarms = false; // Reset listfarms execution flag
-        hasExecutedStartScript = false; // Reset startscript execution flag
         delayClock.reset();
         RotationHandler.getInstance().reset();
         stuckClock.schedule(STUCK_DELAY);
@@ -333,8 +329,6 @@ public class AutoComposter implements IFeature {
                             typeCommand("/ez-startscript netherwart:1");
                             // Reset for next run
                             endSequenceStep = 0;
-                            hasExecutedListFarms = false;
-                            hasExecutedStartScript = false;
                             break;
                     }
                 }
@@ -624,45 +618,18 @@ public class AutoComposter implements IFeature {
                         }
                     }
 
-                    // Fill organic matter from inventory (based on enabled enchanted items and BoS)
+                    // Fill organic matter first, then fuel
                     boolean didAction = false;
                     int targetMatter = Math.min(maxMatter2, Math.max(0, FarmHelperConfig.autoComposterOrganicMatterLeft));
                     if (currentMatter2 < targetMatter) {
-                        int clickDelay = Math.max(0, FarmHelperConfig.autoComposterClickDelayMs);
-                        // Try enabled enchanted organic matter items in order
-                        for (String matterName : getPreferredOrganicMatterNames()) {
-                            int slotId = InventoryUtils.getSlotIdOfItemInContainer(matterName);
-                            if (slotId != -1) {
-                                LogUtils.sendDebug("[Auto Composter] Using " + matterName);
-                                InventoryUtils.clickSlotWithId(slotId, InventoryUtils.ClickType.LEFT, InventoryUtils.ClickMode.PICKUP, chest.windowId);
-                                delayClock.schedule(clickDelay);
-                                didAction = true;
-                                break;
-                            }
-                        }
-                        // Fallback / optionally use Box of Seeds
-                        if (!didAction && FarmHelperConfig.autoComposterUseBoxOfSeeds) {
-                            int bosSlot = InventoryUtils.getSlotIdOfItemInContainer("Box of Seeds");
-                            if (bosSlot != -1) {
-                                LogUtils.sendDebug("[Auto Composter] Using Box of Seeds");
-                                InventoryUtils.clickSlotWithId(bosSlot, InventoryUtils.ClickType.LEFT, InventoryUtils.ClickMode.PICKUP, chest.windowId);
-                                delayClock.schedule(clickDelay);
-                                didAction = true;
-                            }
-                        }
+                        didAction = fillOrganicMatter(chest.windowId);
                     }
 
-                    // Fill fuel from inventory one-by-one (let GUI limit actual intake)
-                    int targetFuel = Math.min(maxFuel2, Math.max(0, FarmHelperConfig.autoComposterFuelLeft));
-                    if (!didAction && currentFuel2 < targetFuel) {
-                        int fuelSlotId = InventoryUtils.getSlotIdOfItemInContainer("Biofuel");
-                        int fuelDelay = Math.max(0, FarmHelperConfig.autoComposterFuelClickDelayMs);
-                        if (fuelSlotId != -1) {
-                            LogUtils.sendDebug("[Auto Composter] Feeding Biofuel");
-                            InventoryUtils.clickSlotWithId(fuelSlotId, InventoryUtils.ClickType.LEFT, InventoryUtils.ClickMode.PICKUP, chest.windowId);
-                            delayClock.schedule(fuelDelay);
-                            didAction = true;
-                            break;
+                    // Only fill fuel if organic matter is done
+                    if (!didAction) {
+                        int targetFuel = Math.min(maxFuel2, Math.max(0, FarmHelperConfig.autoComposterFuelLeft));
+                        if (currentFuel2 < targetFuel) {
+                            didAction = fillFuel(chest.windowId);
                         }
                     }
 
@@ -690,74 +657,41 @@ public class AutoComposter implements IFeature {
 
     }
 
-    private void onBuyState() {
-        // Unified buyer workflow removed per request; operate directly from inventory
-        if (biofuelBuyer.isRunning()) {
-            LogUtils.sendDebug("[Auto Composter] onBuyState - BiofuelBuyer state: " + biofuelBuyer.getBuyState().name());
-            
-            boolean buyingComplete = biofuelBuyer.tick();
-            
-            if (buyingComplete) {
-                if (biofuelBuyer.hasFailed()) {
-                    LogUtils.sendError("[Auto Composter] Biofuel purchase failed, continuing without fuel");
-                } else {
-                    LogUtils.sendSuccess("[Auto Composter] Biofuel purchase completed");
-                }
-                setComposterState(ComposterState.OPEN_COMPOSTER);
-                delayClock.schedule(FarmHelperConfig.getRandomGUIMacroDelay());
-            }
-        } else {
-            // Fallback to composter GUI-based filling
-            LogUtils.sendWarning("[Auto Composter] Falling back to direct composter fill from inventory");
-            setComposterState(ComposterState.OPEN_COMPOSTER);
-            delayClock.schedule(FarmHelperConfig.getRandomGUIMacroDelay());
-        }
-    }
-
-    @Nullable
-    private Entity getComposter() {
-        return mc.theWorld.getLoadedEntityList().
-                stream()
-                .filter(entity -> {
-                    if (!(entity instanceof EntityArmorStand)) return false;
-                    return entity.getCustomNameTag().contains("COMPOSTER");
-                })
-                .min(Comparator.comparingDouble(entity -> entity.getDistanceSqToCenter(mc.thePlayer.getPosition()))).orElse(null);
-    }
-
-    @SubscribeEvent
-    public void onTickBackground(TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) return;
-        if (isRunning()) return;
-        if (!FarmHelperConfig.autoComposter) return;
-        if (!FarmHelperConfig.autoComposterBackgroundLoopEnabled) return;
-        // If no schedule exists, create one on load
-        if (!nextRunClock.isScheduled()) {
-            long intervalMs = Math.max(1, FarmHelperConfig.autoComposterLoopIntervalMinutes) * 60_000L;
-            nextRunClock.schedule(intervalMs);
-            return;
-        }
-        if (nextRunClock.passed()) {
-            LogUtils.sendDebug("[Auto Composter] Background loop trigger reached; evaluating start conditions");
-            this.manuallyStarted = false;
-            if (canEnableMacro(false)) {
-                start();
-            } else {
-                // If not starting, schedule next check on the regular interval
-                long intervalMs = Math.max(1, FarmHelperConfig.autoComposterLoopIntervalMinutes) * 60_000L;
-                nextRunClock.schedule(intervalMs);
+    private boolean fillOrganicMatter(int windowId) {
+        int clickDelay = Math.max(0, FarmHelperConfig.autoComposterClickDelayMs);
+        // Try enabled enchanted organic matter items in order
+        for (String matterName : getPreferredOrganicMatterNames()) {
+            int slotId = InventoryUtils.getSlotIdOfItemInContainer(matterName);
+            if (slotId != -1) {
+                LogUtils.sendDebug("[Auto Composter] Using " + matterName);
+                InventoryUtils.clickSlotWithId(slotId, InventoryUtils.ClickType.LEFT, InventoryUtils.ClickMode.PICKUP, windowId);
+                delayClock.schedule(clickDelay);
+                return true;
             }
         }
+        // Fallback / optionally use Box of Seeds
+        if (FarmHelperConfig.autoComposterUseBoxOfSeeds) {
+            int bosSlot = InventoryUtils.getSlotIdOfItemInContainer("Box of Seeds");
+            if (bosSlot != -1) {
+                LogUtils.sendDebug("[Auto Composter] Using Box of Seeds");
+                InventoryUtils.clickSlotWithId(bosSlot, InventoryUtils.ClickType.LEFT, InventoryUtils.ClickMode.PICKUP, windowId);
+                delayClock.schedule(clickDelay);
+                return true;
+            }
+        }
+        return false;
     }
 
-    @SubscribeEvent
-    public void onRenderWorldLast(RenderWorldLastEvent event) {
-        if (!isRunning()) return;
-        if (mc.thePlayer == null || mc.theWorld == null) return;
-        if (FarmHelperConfig.streamerMode) return;
-        if (!FarmHelperConfig.highlightComposterLocation) return;
-        if (!isComposterPosSet()) return;
-        RenderUtils.drawBlockBox(composterPos(), new Color(0, 155, 255, 50));
+    private boolean fillFuel(int windowId) {
+        int fuelSlotId = InventoryUtils.getSlotIdOfItemInContainer("Biofuel");
+        int fuelDelay = Math.max(0, FarmHelperConfig.autoComposterFuelClickDelayMs);
+        if (fuelSlotId != -1) {
+            LogUtils.sendDebug("[Auto Composter] Feeding Biofuel");
+            InventoryUtils.clickSlotWithId(fuelSlotId, InventoryUtils.ClickType.LEFT, InventoryUtils.ClickMode.PICKUP, windowId);
+            delayClock.schedule(fuelDelay);
+            return true;
+        }
+        return false;
     }
 
     private long getRandomDelay() {
